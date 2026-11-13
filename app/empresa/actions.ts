@@ -13,6 +13,8 @@ import { requireViewer } from "@/lib/session";
 
 export type SetupState = { error?: string } | null;
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function amount(value: FormDataEntryValue | null) {
   const digits = String(value ?? "").replace(/[^\d]/g, "");
   if (!digits) return 0;
@@ -21,10 +23,11 @@ function amount(value: FormDataEntryValue | null) {
   return parsed;
 }
 
-export async function createCompany(
+export async function completeCompany(
   _state: SetupState,
   formData: FormData,
 ): Promise<SetupState> {
+  const companyId = String(formData.get("company_id") ?? "");
   const fullName = String(formData.get("full_name") ?? "").trim();
   const razon = String(formData.get("razon") ?? "").trim();
   const nit = String(formData.get("nit") ?? "").trim();
@@ -34,6 +37,7 @@ export async function createCompany(
   const caja = amount(formData.get("caja"));
   const banco = amount(formData.get("banco"));
 
+  if (!UUID.test(companyId)) return { error: "No se encontró la empresa." };
   if (!fullName) return { error: "Escribe tu nombre." };
   if (!razon) return { error: "Escribe la razón social." };
   if (!nit) return { error: "Escribe el NIT." };
@@ -42,13 +46,19 @@ export async function createCompany(
 
   const { supabase, viewer } = await requireViewer();
   if (viewer.role !== "student") redirect("/panel");
-  if (!viewer.classroomId) return { error: "Elige un aula antes de crear la empresa." };
+
+  const company = viewer.companies.find((item) => item.id === companyId);
+  if (!company) return { error: "Esa empresa no es tuya." };
+  if (viewer.levels["company.edit"] !== "do" || viewer.activeCompanyId !== company.id) {
+    return { error: "No puedes completar esta empresa." };
+  }
 
   const inicio = `${mes}-01`;
   const identity = openingIdentity(nit, razon);
   const catalogo = formData.get("catalogo") === "on";
 
-  const { error } = await supabase.rpc("crear_empresa", {
+  const { error } = await supabase.rpc("completar_empresa", {
+    p_company: companyId,
     payload: {
       full_name: fullName,
       razon,

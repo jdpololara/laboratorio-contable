@@ -1,3 +1,5 @@
+import { SECTION_ACTION, type ActionKey, type ActionLevel } from "@/lib/lab/membership";
+
 export const NAV = [
   {
     group: "Inicio",
@@ -50,6 +52,48 @@ export const NAV = [
       { href: "/s/productos", id: "productos", label: "Productos e inventario" },
       { href: "/s/empresa", id: "empresa", label: "Mi empresa" },
     ],
+  },
+] as const;
+
+export function reviewNav(studentId: string, companyId?: string | null) {
+  const base = `/panel/estudiante/${studentId}`;
+  const query = companyId ? `?empresa=${companyId}` : "";
+  return NAV.map((group) => ({
+    group: group.group,
+    items: group.items.map((item) => ({
+      id: item.id,
+      label: item.label,
+      href: item.id === "inicio" ? `${base}${query}` : `${base}/${item.id}${query}`,
+    })),
+  }));
+}
+
+export function sectionAccess(
+  sectionId: string,
+  role: "admin" | "student",
+  levels: Partial<Record<ActionKey, ActionLevel>>,
+): "open" | ActionLevel {
+  if (role === "admin") return "do";
+  const action = SECTION_ACTION[sectionId];
+  if (!action) return "open";
+  return levels[action] ?? "hide";
+}
+
+export function visibleNav(
+  levels: Partial<Record<ActionKey, ActionLevel>>,
+  role: "admin" | "student",
+) {
+  if (role === "admin") return NAV;
+  return NAV.map((group) => ({
+    group: group.group,
+    items: group.items.filter((item) => sectionAccess(item.id, role, levels) !== "hide"),
+  })).filter((group) => group.items.length > 0);
+}
+
+export const DOCENTE_NAV = [
+  {
+    group: "Panel",
+    items: [{ href: "/panel", id: "panel", label: "Aulas y estudiantes" }],
   },
 ] as const;
 

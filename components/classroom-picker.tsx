@@ -17,7 +17,7 @@ export function ClassroomPicker({
     <form className="card stack" action={action} style={{ maxWidth: 520 }}>
       <h1>Elige tu aula</h1>
       <p className="muted">
-        El docente crea las aulas. Cuando elijas una, podrás crear la empresa de práctica.
+        El docente crea las aulas. Cuando elijas una, puede crear tu empresa personal.
       </p>
       {classrooms.length === 0 ? (
         <p className="empty">Todavía no hay aulas activas.</p>

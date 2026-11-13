@@ -1,31 +1,41 @@
 "use client";
 
 import { useActionState } from "react";
-import { createCompany, type SetupState } from "@/app/empresa/actions";
+import { completeCompany, type SetupState } from "@/app/empresa/actions";
 import { monthOptions } from "@/lib/lab/seed";
 
-export function SetupForm({ fullName }: { fullName: string }) {
+export function SetupForm({
+  fullName,
+  companyId,
+  kind,
+}: {
+  fullName: string;
+  companyId: string;
+  kind: "personal" | "equipo";
+}) {
   const [state, action, pending] = useActionState<SetupState, FormData>(
-    createCompany,
+    completeCompany,
     null,
   );
   const months = monthOptions();
+  const personal = kind === "personal";
 
   return (
     <form className="stack" action={action} style={{ maxWidth: 860 }}>
+      <input type="hidden" name="company_id" value={companyId} />
       <div>
-        <span className="eyebrow">Paso inicial</span>
-        <h1>Crea tu empresa de práctica</h1>
+        <span className="eyebrow">Empresa vacía</span>
+        <h1>{personal ? "Completa tu empresa personal" : "Completa la empresa de equipo"}</h1>
         <p className="lead" style={{ marginTop: 6 }}>
-          Vas a llevar la contabilidad de una comercializadora: vender en el punto de venta,
-          facturar, comprar, pagar, cuadrar la caja y conciliar el banco. Todo lo que registres
-          se convierte en asientos contables.
+          {personal
+            ? "El docente dejó esta empresa vacía. Al completarla queda la que cuenta para la ruta del taller: vender, facturar, comprar, pagar, cuadrar la caja y conciliar el banco."
+            : "Esta empresa de equipo está vacía. Quien tenga permiso completa la razón social, el NIT y los saldos. Es un ejercicio aparte de la nota."}
         </p>
       </div>
       <div className="card stack">
         <h3>Tus datos</h3>
         <label className="f">
-          Nombre completo del estudiante
+          Nombre completo
           <input
             className="in"
             name="full_name"
@@ -94,7 +104,7 @@ export function SetupForm({ fullName }: { fullName: string }) {
       ) : null}
       <div>
         <button className="btn lg" type="submit" disabled={pending}>
-          {pending ? "Creando…" : "Crear mi empresa"}
+          {pending ? "Completando…" : "Completar la empresa"}
         </button>
       </div>
     </form>

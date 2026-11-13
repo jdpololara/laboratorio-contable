@@ -1,34 +1,30 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
+import { CargoForm } from "@/components/cargo-form";
 import { ClassroomPicker } from "@/components/classroom-picker";
 import { LabFrame } from "@/components/lab-frame";
 import { SetupForm } from "@/components/setup-form";
+import { WorkspaceBar } from "@/components/workspace-bar";
+import { companyLabel, kindLabel } from "@/lib/lab/membership";
+import { RUTA, sectionAccess, visibleNav } from "@/lib/lab/nav";
+import { rutaDone, tallyDocuments } from "@/lib/lab/progress";
 import { money } from "@/lib/lab/seed";
-import { RUTA } from "@/lib/lab/nav";
-import { requireViewer } from "@/lib/session";
+import { activeCompany, requireViewer } from "@/lib/session";
 
 async function Home() {
   const { supabase, viewer } = await requireViewer();
   if (viewer.role === "admin") redirect("/panel");
 
-  const { data: company } = await supabase
-    .from("companies")
-    .select("id, razon, nit, work_date, classroom_id")
-    .eq("owner_id", viewer.id)
-    .maybeSingle();
+  const room = viewer.classrooms.find((item) => item.id === viewer.activeClassroomId) ?? null;
+  const here = viewer.companies.filter((company) => company.classroomId === viewer.activeClassroomId);
+  const company = activeCompany(viewer);
+  const personal = here.find(
+    (item) => item.kind === "personal" && item.studentId === viewer.id && item.completed,
+  );
+  const nav = visibleNav(viewer.levels, viewer.role);
 
-  const roomQuery = viewer.classroomId
-    ? supabase
-        .from("classrooms")
-        .select("name, semester, mensaje")
-        .eq("id", viewer.classroomId)
-        .maybeSingle()
-    : Promise.resolve({ data: null });
-
-  const { data: room } = await roomQuery;
-
-  if (!company) {
+  if (viewer.classrooms.length === 0) {
     const { data: classrooms } = await supabase
       .from("classroom_directory")
       .select("id, name, semester")
@@ -36,66 +32,108 @@ async function Home() {
       .order("name");
 
     return (
-      <LabFrame
-        title="Laboratorio Contable"
-        subtitle={room ? `${room.name} · ${room.semester}` : "Elige un aula para empezar"}
-      >
-        {viewer.classroomId ? (
-          <SetupForm fullName={viewer.fullName} />
-        ) : (
-          <ClassroomPicker classrooms={classrooms ?? []} />
-        )}
+      <LabFrame title="Laboratorio Contable" subtitle="Elige un aula para empezar" navigation={false}>
+        <ClassroomPicker classrooms={classrooms ?? []} />
       </LabFrame>
     );
   }
 
-  const { data: documents } = await supabase
+  const { data: cargos } = viewer.activeClassroomId
+    ? await supabase
+        .from("cargos")
+        .select("id, name")
+        .eq("classroom_id", viewer.activeClassroomId)
+        .order("name")
+    : { data: [] };
+
+  const memberships = viewer.memberships.filter((member) => member.companyId === company?.id);
+  const subtitle = company
+    ? `${kindLabel(company.kind)}${company.nit ? ` · NIT ${company.nit}` : ""}`
+    : room
+      ? `${room.name} · ${room.semester}`
+      : "Laboratorio Contable";
+
+  if (!company) {
+    return (
+      <LabFrame title="Laboratorio Contable" subtitle={subtitle} nav={nav}>
+        <div className="stack">
+          <WorkspaceBar
+            classrooms={viewer.classrooms}
+            companies={here}
+            activeClassroomId={viewer.activeClassroomId}
+            activeCompanyId={null}
+          />
+          <p className="empty">
+            El docente todavía no te mete en una empresa de esta aula.
+          </p>
+        </div>
+      </LabFrame>
+    );
+  }
+
+  if (!company.completed) {
+    const canEdit = viewer.levels["company.edit"] === "do";
+    const ownsPersonal = company.kind === "equipo" || company.studentId === viewer.id;
+    return (
+      <LabFrame title={companyLabel(company)} subtitle={subtitle} nav={nav}>
+        <div className="stack">
+          <WorkspaceBar
+            classrooms={viewer.classrooms}
+            companies={here}
+            activeClassroomId={viewer.activeClassroomId}
+            activeCompanyId={company.id}
+          />
+          <CargoForm memberships={memberships} cargos={cargos ?? []} />
+          {canEdit && ownsPersonal ? (
+            <SetupForm fullName={viewer.fullName} companyId={company.id} kind={company.kind} />
+          ) : (
+            <p className="empty">
+              Esta empresa está vacía. La completa quien tenga permiso de editarla.
+            </p>
+          )}
+        </div>
+      </LabFrame>
+    );
+  }
+
+  const { data: documents } = personal
+    ? await supabase
+        .from("documentos")
+        .select("tipo, lineas_asiento!lineas_asiento_documento_id_fkey(cuenta, debito, credito)")
+        .eq("company_id", personal.id)
+    : { data: [] };
+  const { data: activeDocuments } = await supabase
     .from("documentos")
     .select("tipo, lineas_asiento!lineas_asiento_documento_id_fkey(cuenta, debito, credito)")
     .eq("company_id", company.id);
 
-  const balances = new Map<string, number>();
-  const counts = new Map<string, number>();
-  for (const document of documents ?? []) {
-    counts.set(document.tipo, (counts.get(document.tipo) ?? 0) + 1);
-    for (const line of document.lineas_asiento ?? []) {
-      balances.set(
-        line.cuenta,
-        (balances.get(line.cuenta) ?? 0) + line.debito - line.credito,
-      );
-    }
-  }
-
-  const done = [
-    true,
-    (counts.get("POS") ?? 0) >= 5,
-    (counts.get("FE") ?? 0) >= 2,
-    (counts.get("FC") ?? 0) >= 1,
-    (counts.get("CE") ?? 0) >= 1,
-    (counts.get("RC") ?? 0) >= 1,
-    (counts.get("AQ") ?? 0) >= 1,
-    (counts.get("CG") ?? 0) >= 1,
-    (counts.get("EXT") ?? 0) >= 1,
-    (counts.get("CON") ?? 0) >= 1,
-    (counts.get("CON") ?? 0) >= 1,
-  ];
+  const route = tallyDocuments(documents ?? []);
+  const activeBooks = tallyDocuments(activeDocuments ?? []);
+  const done = rutaDone(route.counts, Boolean(personal));
   const finished = done.filter(Boolean).length;
   const firstName = viewer.fullName.split(" ")[0] || "estudiante";
+  const cargo = memberships.map((member) => member.cargoName).join(", ");
 
   return (
     <LabFrame
-      title={company.razon}
-      subtitle={`NIT ${company.nit}${viewer.fullName ? ` · ${viewer.fullName}` : ""}`}
+      title={companyLabel(company)}
+      subtitle={`${subtitle}${viewer.fullName ? ` · ${viewer.fullName}` : ""}${cargo ? ` · ${cargo}` : ""}`}
+      nav={nav}
     >
       <div className="stack">
-        <div className="spread">
-          <div>
-            <h2>Hola, {firstName}</h2>
-            <p className="muted small" style={{ marginTop: 4 }}>
-              Fecha de trabajo: {company.work_date}. Tu empresa queda guardada en el aula
-              {room ? ` ${room.name}` : ""}.
-            </p>
-          </div>
+        <WorkspaceBar
+          classrooms={viewer.classrooms}
+          companies={here}
+          activeClassroomId={viewer.activeClassroomId}
+          activeCompanyId={company.id}
+        />
+        <CargoForm memberships={memberships} cargos={cargos ?? []} />
+        <div>
+          <h2>Hola, {firstName}</h2>
+          <p className="muted small" style={{ marginTop: 4 }}>
+            Fecha de trabajo: {company.workDate}. Esta empresa está en el aula
+            {room ? ` ${room.name}` : ""}.
+          </p>
         </div>
         {room?.mensaje ? (
           <p className="note">
@@ -103,10 +141,16 @@ async function Home() {
             {room.mensaje}
           </p>
         ) : null}
+        {company.kind === "equipo" ? (
+          <p className="note">
+            La ruta del taller cuenta tu empresa personal
+            {personal ? ` (${companyLabel(personal)})` : ""}. Un documento de esta empresa de equipo no la adelanta.
+          </p>
+        ) : null}
         <div className="tiles">
-          <div className="tile"><span>Caja (1105)</span><b>{money(balances.get("1105") ?? 0)}</b></div>
-          <div className="tile"><span>Bancos (1110)</span><b>{money(balances.get("1110") ?? 0)}</b></div>
-          <div className="tile"><span>Inventario (1435)</span><b>{money(balances.get("1435") ?? 0)}</b></div>
+          <div className="tile"><span>Caja (1105)</span><b>{money(activeBooks.balances.get("1105") ?? 0)}</b></div>
+          <div className="tile"><span>Bancos (1110)</span><b>{money(activeBooks.balances.get("1110") ?? 0)}</b></div>
+          <div className="tile"><span>Inventario (1435)</span><b>{money(activeBooks.balances.get("1435") ?? 0)}</b></div>
         </div>
         <div className="grid2">
           <div className="card stack" style={{ gap: 12 }}>
@@ -117,15 +161,20 @@ async function Home() {
               </span>
             </div>
             <ol className="checklist">
-              {RUTA.map(([label, section], index) => (
-                <li key={label} className={done[index] ? "done" : undefined}>
-                  <span className="ck">{done[index] ? "✓" : index + 1}</span>
-                  <span className="t">{label}</span>
-                  <Link className="small" href={section === "empresa" ? "/s/empresa" : `/s/${section}`}>
-                    Ir
-                  </Link>
-                </li>
-              ))}
+              {RUTA.map(([label, section], index) => {
+                const access = sectionAccess(section, viewer.role, viewer.levels);
+                return (
+                  <li key={label} className={done[index] ? "done" : undefined}>
+                    <span className="ck">{done[index] ? "✓" : index + 1}</span>
+                    <span className="t">{label}</span>
+                    {access === "hide" ? null : (
+                      <Link className="small" href={section === "empresa" ? "/s/empresa" : `/s/${section}`}>
+                        {access === "view" ? "Ver" : "Ir"}
+                      </Link>
+                    )}
+                  </li>
+                );
+              })}
             </ol>
           </div>
           <div className="card stack">
