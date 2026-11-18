@@ -80,10 +80,10 @@ export function LabFrame({
       <aside className={`side${open ? " open" : ""}`} ref={asideRef}>
         <div className="side-top">
           <Link className="brand" href={home} onClick={() => setOpen(false)}>
-            <div className="brand-mark">Σ</div>
+            <div className="brand-mark" />
             <div>
-              <b>Laboratorio Contable</b>
-              <span>Contaduría Pública · práctica</span>
+              <b>kiper</b>
+              <span>educativo</span>
             </div>
           </Link>
           {open ? (

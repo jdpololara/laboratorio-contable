@@ -32,7 +32,7 @@ async function Home() {
       .order("name");
 
     return (
-      <LabFrame title="Laboratorio Contable" subtitle="Elige un aula para empezar" navigation={false}>
+      <LabFrame title="Kiper Educativo" subtitle="Elige un aula para empezar" navigation={false}>
         <ClassroomPicker classrooms={classrooms ?? []} />
       </LabFrame>
     );
@@ -51,11 +51,11 @@ async function Home() {
     ? `${kindLabel(company.kind)}${company.nit ? ` · NIT ${company.nit}` : ""}`
     : room
       ? `${room.name} · ${room.semester}`
-      : "Laboratorio Contable";
+      : "Kiper Educativo";
 
   if (!company) {
     return (
-      <LabFrame title="Laboratorio Contable" subtitle={subtitle} nav={nav}>
+      <LabFrame title="Kiper Educativo" subtitle={subtitle} nav={nav}>
         <div className="stack">
           <WorkspaceBar
             classrooms={viewer.classrooms}

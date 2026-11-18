@@ -109,12 +109,15 @@ aside.side {
 }
 .side-close:hover { background: rgba(255, 255, 255, 0.08); }
 .brand { display: flex; gap: 10px; align-items: center; padding: 4px 8px 16px; color: inherit; text-decoration: none; }
+/* Marca de Kiper. El resto del diseño no se cambia: Kiper Educativo, en el repositorio de Kiper, lo reemplaza. */
 .brand-mark {
-  width: 36px; height: 36px; border-radius: 9px; background: #3d7bd0; color: #fff;
-  display: grid; place-items: center; font-family: var(--mono); font-weight: 600;
+  width: 30px; height: 30px; border-radius: 50%; flex: none; display: grid; place-items: center;
+  background: linear-gradient(135deg, #5B3DF5 0%, #9B4DFF 50%, #FF5C39 100%);
+  box-shadow: 0 6px 18px -4px rgba(155, 77, 255, 0.6);
 }
-.brand b { font-family: var(--display); font-size: 1.05rem; display: block; line-height: 1.1; }
-.brand span { font-size: 0.75rem; color: var(--side-muted); }
+.brand-mark::after { content: ""; width: 10px; height: 10px; background: #fff; border-radius: 50%; }
+.brand b { font-size: 22px; font-weight: 800; letter-spacing: -0.03em; display: block; line-height: 1.1; }
+.brand span { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; display: block; color: var(--side-muted); }
 .navg { margin-top: 12px; }
 .navg h4 {
   font-family: var(--mono); font-size: 0.68rem; text-transform: uppercase;
@@ -182,6 +185,9 @@ aside.side {
   padding: 32px 16px;
 }
 .gate .card { width: min(100%, 460px); }
+.gate-stack { width: min(100%, 460px); display: grid; gap: 16px; }
+.gate-stack .card { width: 100%; }
+.gate-edicion { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; color: var(--muted); font-size: 0.875rem; }
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;

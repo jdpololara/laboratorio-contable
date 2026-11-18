@@ -30,7 +30,7 @@ async function Section({
 
   return (
     <LabFrame
-      title={company ? companyLabel(company) : "Laboratorio Contable"}
+      title={company ? companyLabel(company) : "Kiper Educativo"}
       subtitle={company?.nit ? `NIT ${company.nit}` : "Empresa de esta aula"}
       nav={visibleNav(viewer.levels, viewer.role)}
     >

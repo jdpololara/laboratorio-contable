@@ -20,8 +20,8 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Laboratorio Contable",
-  description: "Práctica de contabilidad para el aula.",
+  title: "Kiper Educativo",
+  description: "Kiper Educativo: práctica de contabilidad para el aula.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
